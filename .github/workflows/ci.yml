@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+
+      - name: Install native test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            gir1.2-ayatanaappindicator3-0.1 \
+            gir1.2-gtk-3.0 \
+            gjs \
+            imagemagick \
+            x11-utils \
+            xdotool \
+            xvfb
+          python -m pip install ruff
+
+      - name: Python and native integration tests
+        run: python -W error::ResourceWarning -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Install locked Desktop test dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Desktop and UI model tests
+        run: |
+          node tests/test_ui_model.mjs
+          npm run test:desktop
+          node --check desktop/plugin.js
+
+      - name: GTK CSS and static checks
+        run: |
+          xvfb-run -a gjs tests/test_css.js
+          python -m compileall -q agent_hud dashboard install.py __init__.py
+          ruff check agent_hud dashboard tests install.py __init__.py
+          git diff --check

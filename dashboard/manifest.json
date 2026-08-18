@@ -1,0 +1,12 @@
+{
+  "name": "agent-hud",
+  "label": "Agent HUD Backend",
+  "description": "Bounded read-only agent and subagent activity projection",
+  "icon": "Activity",
+  "version": "1.0.0",
+  "tab": {
+    "hidden": true
+  },
+  "entry": "dist/index.js",
+  "api": "plugin_api.py"
+}

@@ -1,0 +1,19 @@
+[project]
+name = "hermes-agent-hud"
+version = "1.0.0"
+description = "Privacy-safe live operations view for Hermes agents and subagents"
+requires-python = ">=3.10"
+license = "MIT"
+readme = "README.md"
+authors = [{ name = "nnboskovic" }]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

@@ -1,0 +1,98 @@
+{
+  "version": 3,
+  "generated_at": 1800000000,
+  "counts": {"primary": 3, "subagents": 6, "total": 9},
+  "primary": [
+    {
+      "session_id": "primary-demo",
+      "title": "Build Agent HUD",
+      "state": "running",
+      "action": "terminal",
+      "source": "discord",
+      "effort": "high",
+      "api_calls": 9,
+      "tool_calls": 4,
+      "project": "hermes-agent-hud",
+      "branch": "feature/task-overview",
+      "activity": [
+        {"kind": "command", "tool": "terminal", "detail": "python3 -m unittest discover -s tests", "at": 1799999996},
+        {"kind": "diff", "tool": "patch", "detail": "collector.py · +24 −3", "at": 1799999990},
+        {"kind": "file", "tool": "read_file", "detail": "hud.js · lines 1–397", "at": 1799999984}
+      ],
+      "started_at": 1799999800,
+      "last_activity_at": 1799999997
+    },
+    {
+      "session_id": "primary-research",
+      "title": "Research visual references",
+      "state": "running",
+      "action": "web_search",
+      "source": "discord",
+      "effort": "medium",
+      "api_calls": 4,
+      "tool_calls": 8,
+      "project": "hermes-agent-hud",
+      "branch": "main",
+      "activity": [
+        {"kind": "tool", "tool": "skill_view", "detail": "linear.app", "at": 1799999995}
+      ],
+      "started_at": 1799999850,
+      "last_activity_at": 1799999995
+    },
+    {
+      "session_id": "primary-release",
+      "title": "Prepare verified release",
+      "state": "finalizing",
+      "action": "reviewing",
+      "source": "discord",
+      "effort": "high",
+      "api_calls": 6,
+      "tool_calls": 11,
+      "project": "hermes-agent-hud",
+      "branch": "main",
+      "activity": [
+        {"kind": "tool", "tool": "requesting-code-review", "detail": "visual acceptance", "at": 1799999994}
+      ],
+      "started_at": 1799999875,
+      "last_activity_at": 1799999994
+    }
+  ],
+  "delegations": [
+    {
+      "delegation_id": "deleg_demo",
+      "parent_session_id": "primary-demo",
+      "state": "running",
+      "started_at": 1799999900,
+      "goal": "Independent implementation and review",
+      "progress": {"total": 4, "running": 2, "finalizing": 1, "stalling": 1, "completed": 0, "failed": 0},
+      "children": [
+        {"index": 0, "goal": "Review collector privacy boundaries", "state": "running", "action": "read_file", "last_activity_at": 1799999998, "log": "", "activity": [{"kind": "file", "tool": "read_file", "detail": "collector.py · lines 1–200", "at": 0, "clock": "02:04"}]},
+        {"index": 1, "goal": "Run native GTK visual acceptance", "state": "finalizing", "action": "between turns", "last_activity_at": 1799999992, "log": "", "activity": []},
+        {"index": 2, "goal": "Check stalled workflow detection", "state": "stalling", "action": "thinking", "last_activity_at": 1799999929, "log": "", "activity": []},
+        {"index": 3, "goal": "Verify snapshot privacy", "state": "running", "action": "terminal", "last_activity_at": 1799999980, "log": "", "activity": []}
+      ]
+    },
+    {
+      "delegation_id": "deleg_visual",
+      "parent_session_id": "primary-research",
+      "state": "running",
+      "started_at": 1799999950,
+      "goal": "Explore visual direction",
+      "progress": {"total": 1, "running": 1, "finalizing": 0, "stalling": 0, "completed": 0, "failed": 0},
+      "children": [
+        {"index": 0, "goal": "Compare Linear and Raycast patterns", "state": "running", "action": "skill_view", "last_activity_at": 1799999996, "log": "", "activity": [{"kind": "tool", "tool": "skill_view", "detail": "raycast", "at": 0, "clock": "02:05"}]}
+      ]
+    },
+    {
+      "delegation_id": "deleg_unassigned",
+      "parent_session_id": "missing-primary",
+      "state": "running",
+      "started_at": 1799999960,
+      "goal": "Awaiting parent reconciliation",
+      "progress": {"total": 1, "running": 1, "finalizing": 0, "stalling": 0, "completed": 0, "failed": 0},
+      "children": [
+        {"index": 0, "goal": "Preserve unmatched work neutrally", "state": "running", "action": "waiting", "last_activity_at": 1799999991, "log": "", "activity": [{"kind": "tool", "tool": "delegate_task", "detail": "status", "at": 0, "clock": "02:25"}]}
+      ]
+    }
+  ]
+}
