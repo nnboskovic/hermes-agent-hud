@@ -176,7 +176,10 @@ class HudIntegrationTests(unittest.TestCase):
                 expanded = {}
                 for _ in range(40):
                     expanded = self._geometry(window)
-                    if expanded["HEIGHT"] >= 240:
+                    if (
+                        expanded["HEIGHT"] >= 240
+                        and expanded["X"] + expanded["WIDTH"] <= 1280
+                    ):
                         break
                     time.sleep(0.05)
                 self.assertGreaterEqual(expanded["HEIGHT"], 240, expanded)
@@ -187,8 +190,15 @@ class HudIntegrationTests(unittest.TestCase):
                     env=self.xenv,
                     check=True,
                 )
-                time.sleep(0.2)
-                activity = self._geometry(window)
+                activity = {}
+                for _ in range(40):
+                    activity = self._geometry(window)
+                    if (
+                        activity["WIDTH"] >= 620
+                        and activity["X"] + activity["WIDTH"] <= 1280
+                    ):
+                        break
+                    time.sleep(0.05)
                 self.assertGreaterEqual(activity["WIDTH"], 620, activity)
                 self.assertLessEqual(activity["X"] + activity["WIDTH"], 1280, activity)
             finally:
