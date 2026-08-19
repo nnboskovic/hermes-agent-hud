@@ -22,6 +22,7 @@ MAX_ACTIVITY_DETAIL_CHARS = 220
 MAX_PRIMARY_ROWS = 32
 MAX_IDENTIFIER_CHARS = 160
 MAX_GATEWAY_STATE_CHARS = 64
+MAX_FINITE_FLOAT = float.fromhex("0x1.fffffffffffffp+1023")
 MAX_MANIFEST_BYTES = 1_048_576
 _EVENT_RE = re.compile(r"^\d{2}:\d{2}:\d{2}\s+(\w+)\s+\|\s*(.*)$")
 _TOOL_RE = re.compile(r"^->\s+([A-Za-z0-9_.:-]+)")
@@ -313,18 +314,45 @@ def _primary_activity(connection: sqlite3.Connection, session_id: str) -> list[d
     return activity
 
 
-def _primary_agents(home: Path, *, count: int, now: float) -> list[dict[str, Any]]:
-    if count <= 0 or not (home / "state.db").is_file():
-        return []
+def _primary_agents(
+    home: Path,
+    *,
+    gateway_count: int,
+    now: float,
+) -> tuple[list[dict[str, Any]], int]:
+    if not (home / "state.db").is_file():
+        return [], 0
     try:
         connection = _connect_read_only(home / "state.db")
     except sqlite3.Error:
-        return []
+        return [], 0
     try:
         columns = _table_columns(connection, "sessions")
         required = {"id", "source", "started_at", "ended_at", "last_activity_at"}
         if not required.issubset(columns):
-            return []
+            return [], 0
+        message_columns = _table_columns(connection, "messages")
+        if {"session_id", "timestamp"}.issubset(message_columns):
+            active_clause = "AND m.active=1" if "active" in message_columns else ""
+            message_activity_sql = (
+                "(SELECT MAX(CAST(m.timestamp AS REAL)) FROM messages AS m "
+                f"WHERE m.session_id=s.id {active_clause})"
+            )
+        else:
+            message_activity_sql = "NULL"
+        activity_sql = (
+            "MAX(COALESCE(CAST(s.last_activity_at AS REAL), 0), "
+            "COALESCE(CAST(s.started_at AS REAL), 0), "
+            f"COALESCE({message_activity_sql}, 0))"
+        )
+        fresh_after = now - PRIMARY_FRESHNESS_SECONDS
+        fresh_count_row = connection.execute(
+            "SELECT COUNT(*) AS count FROM sessions AS s "
+            "WHERE s.ended_at IS NULL AND COALESCE(s.source, '') != 'subagent' "
+            f"AND {activity_sql} >= ? AND {activity_sql} <= ?",
+            (fresh_after, MAX_FINITE_FLOAT),
+        ).fetchone()
+        fresh_count = _safe_nonnegative_int(fresh_count_row["count"] if fresh_count_row else 0)
         title_sql = "title" if "title" in columns else "'' AS title"
         description_sql = (
             "last_activity_description"
@@ -343,21 +371,27 @@ def _primary_agents(home: Path, *, count: int, now: float) -> list[dict[str, Any
             )
         )
         rows = connection.execute(
-            f"SELECT id, source, {title_sql}, started_at, last_activity_at, "
-            f"{description_sql}, {session_key_sql}, {optional_sql} FROM sessions "
-            "WHERE ended_at IS NULL AND COALESCE(source, '') != 'subagent' "
-            "ORDER BY COALESCE(last_activity_at, started_at) DESC LIMIT ?",
-            (max(count * 4, count),),
+            f"SELECT s.id, s.source, {title_sql}, s.started_at, s.last_activity_at, "
+            f"{description_sql}, {session_key_sql}, {optional_sql}, "
+            f"{message_activity_sql} AS message_activity_at FROM sessions "
+            "AS s WHERE s.ended_at IS NULL AND COALESCE(s.source, '') != 'subagent' "
+            f"AND {activity_sql} >= ? AND {activity_sql} <= ? "
+            f"ORDER BY {activity_sql} DESC LIMIT ?",
+            (fresh_after, MAX_FINITE_FLOAT, MAX_PRIMARY_ROWS),
         ).fetchall()
         agents: list[dict[str, Any]] = []
         for row in rows:
             raw_started_at = _finite_float(row["started_at"])
-            activity_at = _finite_float(row["last_activity_at"], raw_started_at)
+            activity_at = max(
+                raw_started_at,
+                _finite_float(row["last_activity_at"]),
+                _finite_float(row["message_activity_at"]),
+            )
             started_at = _finite_float(row["started_at"], activity_at)
             if now - activity_at > PRIMARY_FRESHNESS_SECONDS:
                 continue
             session_id = str(row["id"])
-            action, message_activity_at = _latest_action(
+            action, latest_action_at = _latest_action(
                 connection,
                 session_id,
                 str(row["last_activity_description"] or ""),
@@ -377,12 +411,13 @@ def _primary_agents(home: Path, *, count: int, now: float) -> list[dict[str, Any
                     "branch": _clip_goal(row["git_branch"]),
                     "activity": _primary_activity(connection, session_id),
                     "started_at": started_at,
-                    "last_activity_at": max(activity_at, message_activity_at),
+                    "last_activity_at": max(activity_at, latest_action_at),
                 }
             )
-            if len(agents) >= count:
+            if len(agents) >= MAX_PRIMARY_ROWS:
                 break
-        while len(agents) < count:
+        visible_target = min(max(gateway_count, len(agents)), MAX_PRIMARY_ROWS)
+        while len(agents) < visible_target:
             agents.append(
                 {
                     "session_id": "",
@@ -401,9 +436,9 @@ def _primary_agents(home: Path, *, count: int, now: float) -> list[dict[str, Any
                     "last_activity_at": now,
                 }
             )
-        return agents
+        return agents, fresh_count
     except sqlite3.Error:
-        return []
+        return [], 0
     finally:
         connection.close()
 
@@ -800,7 +835,12 @@ def collect_snapshot(home: Path, *, now: float | None = None) -> dict[str, Any]:
         primary_count = max(0, int(gateway.get("active_agents", 0)))
     except (TypeError, ValueError, OverflowError):
         primary_count = 0
-    primary = _primary_agents(home, count=min(primary_count, MAX_PRIMARY_ROWS), now=timestamp)
+    primary, fresh_primary_count = _primary_agents(
+        home,
+        gateway_count=primary_count,
+        now=timestamp,
+    )
+    primary_count = max(primary_count, fresh_primary_count)
     delegations, subagent_count = _delegations(home)
     return {
         "version": SNAPSHOT_VERSION,

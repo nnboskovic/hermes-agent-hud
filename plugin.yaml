@@ -1,5 +1,5 @@
 name: agent-hud
-version: 1.0.0
+version: 1.0.1
 description: Privacy-safe live operations view for Hermes agents and subagents
 license: MIT
 homepage: https://github.com/nnboskovic/hermes-agent-hud

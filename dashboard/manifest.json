@@ -3,7 +3,7 @@
   "label": "Agent HUD Backend",
   "description": "Bounded read-only agent and subagent activity projection",
   "icon": "Activity",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "tab": {
     "hidden": true
   },

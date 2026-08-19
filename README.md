@@ -104,8 +104,8 @@ Model identity is intentionally omitted. The HUD never invents completion percen
 
 The plugin and standalone collector share the same bounded projection.
 
-- Primary count comes from Hermes gateway state.
-- Primary identity and action come from fresh, unended non-subagent sessions in read-only `state.db`.
+- Primary count is the larger of the gateway’s active-turn lower bound and the exact number of fresh, unended non-subagent sessions in read-only `state.db`.
+- Primary identity and action come from those fresh sessions, using the newer of session-summary and message activity timestamps.
 - Delegation ownership and lifecycle come from durable `async_delegations`, manifests, and explicit confined redacted-log events.
 - SQLite is opened with `mode=ro` and `PRAGMA query_only=ON`.
 - Only the explicit Hermes `final | end status=...` record terminates a child ahead of a lagging manifest.
@@ -143,7 +143,7 @@ desktop/plugin.js           native Desktop pane/page/sidebar/status UI
 
 The Desktop half polls its namespace every 2.5 seconds with a bounded timeout. It normalizes and re-bounds the response before rendering plain text. The backend returns a generic `503` on failure and never forwards exception details.
 
-For a remote Hermes backend, install and enable the backend package on the remote machine as well as the Desktop package on the local machine. Local-backend use is the primary tested configuration for v1.0.0.
+For a remote Hermes backend, install and enable the backend package on the remote machine as well as the Desktop package on the local machine. Local-backend use is the primary tested configuration for v1.0.1.
 
 ## Standalone behavior
 

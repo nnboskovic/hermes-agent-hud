@@ -1,8 +1,10 @@
 # Discord announcement
 
-**Hermes Agent HUD v1.0.0**
+**Hermes Agent HUD v1.0.1**
 
 A privacy-safe, read-only live operations view for Hermes agents and subagents.
+
+This bugfix release keeps Desktop and CLI work visible even when the messaging gateway itself has no active foreground turns.
 
 It adds a native Hermes Desktop pane, full sidebar page, and status-bar summary. Linux users can also install the independent always-on-top GTK overlay.
 

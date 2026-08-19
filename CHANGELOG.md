@@ -2,6 +2,12 @@
 
 All notable changes to Hermes Agent HUD are documented here.
 
+## 1.0.1 — 2026-08-18
+
+- Count fresh Desktop and CLI sessions even when the messaging gateway reports no active foreground turns.
+- Preserve `gateway_state.active_agents` as a lower bound for gateway work that has not reached the session database yet.
+- Use the newer of session-summary and message activity when deciding whether an open session is fresh.
+
 ## 1.0.0 — 2026-08-18
 
 - Publishable unified Hermes plugin with a native Desktop pane, page, sidebar entry, and status chip.

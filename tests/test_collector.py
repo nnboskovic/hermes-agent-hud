@@ -195,6 +195,115 @@ class CollectorTests(unittest.TestCase):
         self.assertTrue(snapshot["counts"]["primary_truncated"])
         self.assertLessEqual(len(snapshot["gateway"]["state"]), 64)
 
+    def test_collects_fresh_desktop_session_when_gateway_reports_idle(self) -> None:
+        now = 1_800_000_000.0
+        with tempfile.TemporaryDirectory() as raw_home:
+            home = Path(raw_home)
+            (home / "gateway_state.json").write_text(
+                json.dumps({"gateway_state": "running", "active_agents": 0}),
+                encoding="utf-8",
+            )
+            with closing(sqlite3.connect(home / "state.db")) as conn, conn:
+                conn.executescript(
+                    """
+                    CREATE TABLE sessions (
+                        id TEXT PRIMARY KEY, source TEXT, title TEXT,
+                        started_at REAL, ended_at REAL, last_activity_at REAL,
+                        last_activity_description TEXT, session_key TEXT
+                    );
+                    CREATE TABLE messages (
+                        session_id TEXT, role TEXT, tool_name TEXT, timestamp REAL
+                    );
+                    CREATE TABLE async_delegations (
+                        delegation_id TEXT, parent_session_id TEXT, state TEXT,
+                        dispatched_at REAL, task_json TEXT
+                    );
+                    """
+                )
+                conn.execute(
+                    "INSERT INTO sessions VALUES (?, ?, ?, ?, NULL, ?, ?, ?)",
+                    (
+                        "desktop-live",
+                        "cli",
+                        "Desktop task",
+                        now - 10_000,
+                        now - 9_000,
+                        "working",
+                        "",
+                    ),
+                )
+                conn.execute(
+                    "INSERT INTO messages VALUES (?, 'tool', 'terminal', ?)",
+                    ("desktop-live", now - 2),
+                )
+                conn.execute(
+                    "INSERT INTO sessions VALUES (?, ?, ?, ?, NULL, ?, ?, ?)",
+                    (
+                        "desktop-stale",
+                        "cli",
+                        "Old Desktop task",
+                        now - 10_000,
+                        now - 9_000,
+                        "",
+                        "",
+                    ),
+                )
+
+            snapshot = collect_snapshot(home, now=now)
+
+        self.assertEqual(snapshot["counts"]["primary"], 1)
+        self.assertEqual(snapshot["counts"]["primary_visible"], 1)
+        self.assertEqual(snapshot["counts"]["total"], 1)
+        self.assertEqual([row["session_id"] for row in snapshot["primary"]], ["desktop-live"])
+
+    def test_nonfinite_real_activity_does_not_create_phantom_agents(self) -> None:
+        now = 1_800_000_000.0
+        with tempfile.TemporaryDirectory() as raw_home:
+            home = Path(raw_home)
+            (home / "gateway_state.json").write_text(
+                json.dumps({"gateway_state": "running", "active_agents": 0}),
+                encoding="utf-8",
+            )
+            with closing(sqlite3.connect(home / "state.db")) as conn, conn:
+                conn.executescript(
+                    """
+                    CREATE TABLE sessions (
+                        id TEXT PRIMARY KEY, source TEXT, started_at,
+                        ended_at REAL, last_activity_at
+                    );
+                    CREATE TABLE messages (
+                        session_id TEXT, role TEXT, tool_name TEXT, timestamp
+                    );
+                    CREATE TABLE async_delegations (
+                        delegation_id TEXT, parent_session_id TEXT, state TEXT,
+                        dispatched_at REAL, task_json TEXT
+                    );
+                    """
+                )
+                conn.execute(
+                    "INSERT INTO sessions VALUES (?, 'cli', ?, NULL, ?)",
+                    ("infinite-start", float("inf"), now - 9_000),
+                )
+                conn.execute(
+                    "INSERT INTO sessions VALUES (?, 'cli', ?, NULL, ?)",
+                    ("infinite-message", now - 10_000, now - 9_000),
+                )
+                conn.execute(
+                    "INSERT INTO messages VALUES (?, 'tool', 'terminal', ?)",
+                    ("infinite-message", float("inf")),
+                )
+                conn.execute(
+                    "INSERT INTO sessions VALUES (?, 'cli', ?, NULL, ?)",
+                    ("malformed-text", "inf", "NaN"),
+                )
+
+            snapshot = collect_snapshot(home, now=now)
+
+        self.assertEqual(snapshot["counts"]["primary"], 0)
+        self.assertEqual(snapshot["counts"]["primary_visible"], 0)
+        self.assertEqual(snapshot["counts"]["total"], 0)
+        self.assertEqual(snapshot["primary"], [])
+
     def test_malformed_and_nonfinite_timestamps_fail_closed(self) -> None:
         now = 1_800_000_000.0
         with tempfile.TemporaryDirectory() as raw_home:

@@ -17,7 +17,7 @@ class PluginPackageTests(unittest.TestCase):
     def test_native_manifest_is_installable_and_read_only(self) -> None:
         manifest = (self.root / "plugin.yaml").read_text(encoding="utf-8")
         self.assertIn("name: agent-hud", manifest)
-        self.assertIn("version: 1.0.0", manifest)
+        self.assertIn("version: 1.0.1", manifest)
         self.assertIn("license: MIT", manifest)
         self.assertNotIn("provides_tools:", manifest)
         self.assertTrue((self.root / "__init__.py").is_file())

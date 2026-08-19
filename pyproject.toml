@@ -1,6 +1,6 @@
 [project]
 name = "hermes-agent-hud"
-version = "1.0.0"
+version = "1.0.1"
 description = "Privacy-safe live operations view for Hermes agents and subagents"
 requires-python = ">=3.10"
 license = "MIT"
